@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "datacat"
+version = "0.0.1"
+authors = [
+    {name = "Alvaro Clemente", email = "clemente.varo@gmail.com"},
+]
+description = "A production like data generator"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = []
+
+[project.scripts]
+datacat = "datacat.main:main"
+
+[tool.black]
+target-version = ["py310"]
+
+[tool.isort]
+profile = "black"
+
+[tool.mypy]
+ignore_missing_import = true
