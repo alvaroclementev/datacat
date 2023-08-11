@@ -1,5 +1,6 @@
 """Entrypoints for datacat"""
 
+import abc
 import argparse
 import asyncio
 import csv
@@ -9,38 +10,108 @@ import json
 import sys
 from pathlib import Path
 
-Data = list[dict]
+Row = dict
+Data = list[Row]
 
-# TODO(alvaro): Add some simple way of configuring the generation (yaml?, use pydantic)
-# TODO(alvaro): Add the concept of `Serializer` that controls the format of the generation (i.e: ndjson)
-# TODO(alvaro): Add a concept that represents a timestamp generation
-# TODO(alvaro): Add a concept of `Source`
-# TODO(alvaro): Formaize the concept of `Sink`
 # TODO(alvaro): Make this work in a streaming fashion (async source and sink, maybe AsyncIterator?)
+# TODO(alvaro): Add some simple way of configuring the generation (yaml?, use pydantic)
+# TODO(alvaro): Add a way to configure the timing of the rows
+#       - Regular interval
+#       - Bursts / batches
+#       - Custom Random Distribution
 
 
-class ConsoleSink:
+class Source(abc.ABC):
+    """An object that encapsulates the source of some data"""
+
+    @abc.abstractmethod
+    def load(self) -> Data:
+        ...
+
+
+class CsvSource(Source):
+    """A source that comes from a CSV file"""
+
+    supports_streaming: bool = True
+
+    def __init__(self, path: Path):
+        self.path = path
+
+    def load(self) -> Data:
+        # TODO(alvaro): Add support for limiting the number of rows to load
+        with self.path.open("r", newline="") as csvfile:
+            reader = csv.DictReader(csvfile)
+            return list(reader)
+
+
+class Timestamper(abc.ABC):
+    """A generator of timestamps for rows"""
+
+    @abc.abstractmethod
+    def timestamp(self) -> datetime.datetime:
+        ...
+
+
+class NowTimestamper(Timestamper):
+    """A Timestamper that uses the current time"""
+
+    def timestamp(self) -> datetime.datetime:
+        return datetime.datetime.now()
+
+
+class Sink(abc.ABC):
+    """An object that outputs datasets into some format"""
+
+    @abc.abstractmethod
+    def output(self, data: Data):
+        ...
+
+
+class Serializer(abc.ABC):
+    """An object that transforms a row into a serialized format"""
+
+    @abc.abstractmethod
+    def serialize(self, row: Row) -> str:
+        ...
+
+
+class JsonSerializer(Serializer):
+    """A serializer that represents each row as a json object"""
+
+    def serialize(self, row: Row) -> str:
+        return json.dumps(row)
+
+
+class ConsoleSink(Sink):
     """A sink that outputs the file to the console"""
+
+    supports_streaming: bool = True
 
     def __init__(
         self,
-        data: Data,
+        serializer: Serializer,
+        timestamper: Timestamper,
+        *,
         n: int | None = None,
         add_timestamp: bool = True,
         timestamp_field: str = "timestamp",
     ):
-        self.data = data
+        self.serializer = serializer
+        self.timestamper = timestamper
         self.n = n
         self.add_timestamp = add_timestamp
         self.timestamp_field = timestamp_field
 
-    def output(self):
-        data = self.data if self.n is None else itertools.islice(self.data, self.n)
+    def output(self, data: Data):
+        data = data if self.n is None else itertools.islice(data, self.n)
         for row in data:
             if self.add_timestamp:
-                row[self.timestamp_field] = datetime.datetime.now().isoformat()
+                row[self.timestamp_field] = self.timestamper.timestamp().isoformat()
 
-            print(json.dumps(row))
+            serialized = self.serializer.serialize(row)
+
+            # Actually output to the console
+            print(serialized)
 
 
 def main() -> int:
@@ -61,19 +132,15 @@ def main() -> int:
     return 0
 
 
-async def generate_data(source: Path, n: int | None = None):
+async def generate_data(source_path: Path, n: int | None = None):
     """Generate the data"""
-    data = load_csv(source)
+    source = CsvSource(source_path)
+    data = source.load()
 
-    sink = ConsoleSink(data, n, add_timestamp=True)
-    sink.output()
-
-
-def load_csv(path: Path) -> Data:
-    """Load the data from a CSV file"""
-    with path.open("r", newline="") as csvfile:
-        reader = csv.DictReader(csvfile)
-        return list(reader)
+    serializer = JsonSerializer()
+    timestamper = NowTimestamper()
+    sink = ConsoleSink(serializer, timestamper, n=n, add_timestamp=True)
+    sink.output(data)
 
 
 if __name__ == "__main__":
