@@ -1,11 +1,16 @@
 """Objects that manage the timings for data generators.
 They connect the Source and the Sink
 """
+from __future__ import annotations
 
 import abc
 import asyncio
 
 from datacat.typing import AsyncData, LazyData
+
+# TODO(alvaro): Add different conductors
+#   - Burst / Batches
+#   - Custom Random Distributions
 
 
 class Conductor(abc.ABC):
