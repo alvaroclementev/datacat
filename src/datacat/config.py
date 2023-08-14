@@ -42,6 +42,7 @@ class FixedRateConductorConfig(BaseModel):
 
 class NowTimestamperConfig(BaseModel):
     type: Literal["now"]
+    field_name: str = "timestamp"
 
 
 def load(config_path: Path) -> Configuration:

@@ -5,7 +5,16 @@ import abc
 import csv
 from pathlib import Path
 
+from datacat.config import Configuration
 from datacat.typing import Data
+
+
+def build(conf: Configuration) -> Source:
+    """Build the right `Source` for the given configuration"""
+
+    if conf.source.type == "csv":
+        return CsvSource(conf.source.path)
+    raise ValueError("Unknown source configuration")
 
 
 class Source(abc.ABC):

@@ -6,11 +6,20 @@ from __future__ import annotations
 import abc
 import asyncio
 
+from datacat.config import Configuration
 from datacat.typing import AsyncData, LazyData
 
 # TODO(alvaro): Add different conductors
 #   - Burst / Batches
 #   - Custom Random Distributions
+
+
+def build(conf: Configuration, verbose: bool = False) -> Conductor:
+    """Build the right `Conductor` for the given configuration"""
+
+    if conf.conductor.type == "rate":
+        return FixedRateConductor(conf.conductor.rate, verbose=verbose)
+    raise ValueError("Unknown source configuration")
 
 
 class Conductor(abc.ABC):
@@ -23,7 +32,7 @@ class Conductor(abc.ABC):
         ...
 
 
-class FixedRateConductor(abc.ABC):
+class FixedRateConductor(Conductor):
     """Timing Generator that yields rows at a fixed rate (rows/s)"""
 
     def __init__(self, rows_per_s: float, *, verbose: bool = False):

@@ -6,22 +6,14 @@ import asyncio
 import sys
 from pathlib import Path
 
-from datacat import config
-from datacat.conductor import FixedRateConductor
-from datacat.serializer import JsonSerializer
-from datacat.sink import ConsoleSink
-from datacat.source import CsvSource
-from datacat.timestamper import NowTimestamper
+from datacat import conductor, config, serializer, sink, source, timestamper
 
 # TODO(alvaro): Make source and sink async so that everything can work asynchronously
-# TODO(alvaro): Add some simple way of configuring the generation (yaml?, use pydantic)
 # TODO(alvaro): Add the concept of ticks so that we can give more precise timings
 #       - Make it have dynamic precision (e.g: 10ticks/s vs 1000ticks/s, depending on
 #           the maximum precision requested)
 
-
-# FIXME(alvaro): Make this configurable
-ROWS_PER_S = 25
+# For debugging purposes
 VERBOSE = False
 
 
@@ -57,7 +49,7 @@ def main() -> int:
         print("no configuration file exists", file=sys.stderr)
         return 1
 
-    # TODO(alvaro): Merge the config from the command line (and environment?)
+    # TODO(alvaro): Merge the config coming from the command line (and environment?)
     conf = config.load(config_path)
 
     asyncio.run(generate_data(conf, n))
@@ -69,25 +61,17 @@ async def generate_data(conf: config.Configuration, n: int | None = None):
 
     # Prepare the generator given the configuration
     # TODO(alvaro): Extract the configuration from here
-    if conf.source.type == "csv":
-        source = CsvSource(conf.source.path)
+    gen_source = source.build(conf)
+    gen_serializer = serializer.build(conf)
+    gen_timestamper = timestamper.build(conf)
+    gen_conductor = conductor.build(conf, verbose=VERBOSE)
 
-    if conf.format.type == "json":
-        serializer = JsonSerializer()
-
-    if conf.timestamp.type == "now":
-        timestamper = NowTimestamper()
-
-    if conf.sink.type == "console":
-        sink = ConsoleSink(serializer, timestamper, n=n, add_timestamp=True)
-
-    if conf.conductor.type == "rate":
-        conductor = FixedRateConductor(conf.conductor.rate, verbose=VERBOSE)
+    gen_sink = sink.build(conf, gen_serializer, gen_timestamper, n=n)
 
     # Run the generation
-    data = source.load()
-    stream = conductor.conduct(data)
-    await sink.output(stream)
+    data = gen_source.load()
+    stream = gen_conductor.conduct(data)
+    await gen_sink.output(stream)
 
 
 if __name__ == "__main__":

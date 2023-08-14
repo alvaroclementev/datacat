@@ -1,4 +1,5 @@
 data/
+datacat.yaml
 .python-version
 **/t.py
 
