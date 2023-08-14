@@ -9,11 +9,14 @@ import itertools
 import json
 import sys
 from pathlib import Path
+from typing import Iterable
 
 Row = dict
 Data = list[Row]
+LazyData = Iterable[Row]
 
 # TODO(alvaro): Make this work in a streaming fashion (async source and sink, maybe AsyncIterator?)
+# TODO(alvaro): Make source and sink async so that everything can work asynchronously
 # TODO(alvaro): Add some simple way of configuring the generation (yaml?, use pydantic)
 # TODO(alvaro): Add a way to configure the timing of the rows
 #       - Regular interval
@@ -63,7 +66,7 @@ class Sink(abc.ABC):
     """An object that outputs datasets into some format"""
 
     @abc.abstractmethod
-    def output(self, data: Data):
+    def output(self, data: LazyData):
         ...
 
 
@@ -102,7 +105,7 @@ class ConsoleSink(Sink):
         self.add_timestamp = add_timestamp
         self.timestamp_field = timestamp_field
 
-    def output(self, data: Data):
+    def output(self, data: LazyData):
         data = data if self.n is None else itertools.islice(data, self.n)
         for row in data:
             if self.add_timestamp:
@@ -134,12 +137,16 @@ def main() -> int:
 
 async def generate_data(source_path: Path, n: int | None = None):
     """Generate the data"""
-    source = CsvSource(source_path)
-    data = source.load()
 
+    # Prepare the generator given the configuration
+    # TODO(alvaro): Actually take a configuration
+    source = CsvSource(source_path)
     serializer = JsonSerializer()
     timestamper = NowTimestamper()
     sink = ConsoleSink(serializer, timestamper, n=n, add_timestamp=True)
+
+    # Run the generation
+    data = source.load()
     sink.output(data)
 
 
