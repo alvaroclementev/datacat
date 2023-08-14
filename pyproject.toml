@@ -25,3 +25,5 @@ profile = "black"
 
 [tool.mypy]
 ignore_missing_import = true
+allow_redefinition = true
+python_version = "3.10"
