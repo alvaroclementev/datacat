@@ -5,16 +5,18 @@ import argparse
 import asyncio
 import csv
 import datetime
-import itertools
 import json
 import sys
 from pathlib import Path
 
+from datacat import helpers
 from datacat.conductor import FixedRateConductor
-from datacat.typing import AsyncData, Data, LazyData, Row
+from datacat.typing import AsyncData, Data, Row
 
-# TODO(alvaro): Make this work in a streaming fashion (async source and sink, maybe AsyncIterator?)
 # TODO(alvaro): Make source and sink async so that everything can work asynchronously
+# TODO(alvaro): Add the concept of ticks so that we can give more precise timings
+#       - Make it have dynamic precision (e.g: 10ticks/s vs 1000ticks/s, depending on
+#           the maximum precision requested)
 # TODO(alvaro): Add some simple way of configuring the generation (yaml?, use pydantic)
 # TODO(alvaro): Add a way to configure the timing of the rows
 #       - Regular interval
@@ -22,7 +24,8 @@ from datacat.typing import AsyncData, Data, LazyData, Row
 #       - Custom Random Distribution
 
 # FIXME(alvaro): Make this configurable
-ROWS_PER_S = 5
+ROWS_PER_S = 25
+VERBOSE = False
 
 
 class Source(abc.ABC):
@@ -107,7 +110,7 @@ class ConsoleSink(Sink):
         self.timestamp_field = timestamp_field
 
     async def output(self, data: AsyncData):
-        data = data if self.n is None else itertools.islice(data, self.n)
+        data = data if self.n is None else helpers.aislice(data, self.n)
         async for row in data:
             if self.add_timestamp:
                 row[self.timestamp_field] = self.timestamper.timestamp().isoformat()
@@ -146,13 +149,12 @@ async def generate_data(source_path: Path, n: int | None = None):
     timestamper = NowTimestamper()
     sink = ConsoleSink(serializer, timestamper, n=n, add_timestamp=True)
 
-    conductor = FixedRateConductor(ROWS_PER_S)
+    conductor = FixedRateConductor(ROWS_PER_S, verbose=VERBOSE)
 
     # Run the generation
     data = source.load()
-
-    async for row in conductor.conduct(data):
-        sink.output(data)
+    stream = conductor.conduct(data)
+    await sink.output(stream)
 
 
 if __name__ == "__main__":
