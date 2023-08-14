@@ -9,11 +9,9 @@ import itertools
 import json
 import sys
 from pathlib import Path
-from typing import Iterable
 
-Row = dict
-Data = list[Row]
-LazyData = Iterable[Row]
+from datacat.conductor import FixedRateConductor
+from datacat.typing import AsyncData, Data, LazyData, Row
 
 # TODO(alvaro): Make this work in a streaming fashion (async source and sink, maybe AsyncIterator?)
 # TODO(alvaro): Make source and sink async so that everything can work asynchronously
@@ -22,6 +20,9 @@ LazyData = Iterable[Row]
 #       - Regular interval
 #       - Bursts / batches
 #       - Custom Random Distribution
+
+# FIXME(alvaro): Make this configurable
+ROWS_PER_S = 5
 
 
 class Source(abc.ABC):
@@ -66,7 +67,7 @@ class Sink(abc.ABC):
     """An object that outputs datasets into some format"""
 
     @abc.abstractmethod
-    def output(self, data: LazyData):
+    async def output(self, data: AsyncData):
         ...
 
 
@@ -105,9 +106,9 @@ class ConsoleSink(Sink):
         self.add_timestamp = add_timestamp
         self.timestamp_field = timestamp_field
 
-    def output(self, data: LazyData):
+    async def output(self, data: AsyncData):
         data = data if self.n is None else itertools.islice(data, self.n)
-        for row in data:
+        async for row in data:
             if self.add_timestamp:
                 row[self.timestamp_field] = self.timestamper.timestamp().isoformat()
 
@@ -145,9 +146,13 @@ async def generate_data(source_path: Path, n: int | None = None):
     timestamper = NowTimestamper()
     sink = ConsoleSink(serializer, timestamper, n=n, add_timestamp=True)
 
+    conductor = FixedRateConductor(ROWS_PER_S)
+
     # Run the generation
     data = source.load()
-    sink.output(data)
+
+    async for row in conductor.conduct(data):
+        sink.output(data)
 
 
 if __name__ == "__main__":
