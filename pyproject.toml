@@ -12,7 +12,9 @@ description = "A production like data generator"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-dependencies = []
+dependencies = [
+    "pydantic>=2.0"
+]
 
 [project.scripts]
 datacat = "datacat.main:main"
