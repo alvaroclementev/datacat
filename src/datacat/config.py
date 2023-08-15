@@ -17,7 +17,7 @@ class Configuration(BaseModel):
     # A new `XXXSourceConfig` with a `type` field with a unique (for that kind)
     # `Literal` value and add it as a union in the corresponding field
 
-    source: CsvSourceConfig | ParquetSourceConfig | NdJsonSourceConfig = Field(
+    source: CsvSourceConfig | ParquetSourceConfig | NdJsonSourceConfig | JsonSourceConfig = Field(
         discriminator="type"
     )
     sink: ConsoleSinkConfig = Field(discriminator="type")
@@ -40,6 +40,11 @@ class ParquetSourceConfig(BaseModel):
 
 class NdJsonSourceConfig(BaseModel):
     type: Literal["ndjson"]
+    path: FilePath
+
+
+class JsonSourceConfig(BaseModel):
+    type: Literal["json"]
     path: FilePath
 
 

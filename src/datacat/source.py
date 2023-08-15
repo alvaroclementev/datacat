@@ -17,6 +17,8 @@ def build(conf: Configuration) -> Source:
         return ParquetSource(conf.source.path)
     elif conf.source.type == "ndjson":
         return NdJsonSource(conf.source.path)
+    elif conf.source.type == "json":
+        return JsonSource(conf.source.path)
     raise ValueError("Unknown source configuration")
 
 
@@ -74,4 +76,25 @@ class NdJsonSource(Source):
         with self.path.open("r") as f:
             data = [json.loads(line.strip()) for line in f.readlines()]
 
+        return data
+
+
+class JsonSource(Source):
+    """A source that comes from a file that contains JSON array of objects"""
+
+    supports_streaming: bool = True
+
+    def __init__(self, path: Path):
+        self.path = path
+
+    def load(self) -> Data:
+        import json
+
+        with self.path.open("r") as f:
+            data = json.load(f)
+
+        if not isinstance(data, list) or (data and not isinstance(data[0], dict)):
+            raise ValueError(
+                "invalid format for JSON source: it should be an array of objects"
+            )
         return data
