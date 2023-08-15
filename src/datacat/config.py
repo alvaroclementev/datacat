@@ -20,7 +20,7 @@ class Configuration(BaseModel):
     source: CsvSourceConfig | ParquetSourceConfig | NdJsonSourceConfig | JsonSourceConfig = Field(
         discriminator="type"
     )
-    sink: ConsoleSinkConfig = Field(discriminator="type")
+    sink: ConsoleSinkConfig | KafkaSinkConfig = Field(discriminator="type")
     format: JsonSerializerConfig = Field(discriminator="type")
     conductor: FixedRateConductorConfig | OriginalRateConductorConfig = Field(
         discriminator="type"
@@ -52,6 +52,12 @@ class JsonSourceConfig(BaseModel):
 
 class ConsoleSinkConfig(BaseModel):
     type: Literal["console"]
+
+
+class KafkaSinkConfig(BaseModel):
+    type: Literal["kafka"]
+    bootstrap_servers: str | list[str]
+    topic: str
 
 
 # TODO(alvaro): Should we rename this to ndjson for consistency?

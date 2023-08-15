@@ -51,19 +51,24 @@ async def generate_data(conf: config.Configuration, n: int | None = None):
     gen_serializer = serializer.build(conf)
     gen_timestamper = timestamper.build(conf)
     gen_conductor = conductor.build(conf, verbose=VERBOSE)
-    gen_sink = sink.build(conf)
 
-    # Run the generation engine
-    data = gen_source.load()
-    stream = gen_conductor.conduct(data)
-    # TODO(alvaro): Add support for batch output
-    stream = stream if n is None else helpers.aislice(stream, n)
-    async for row in stream:
-        ts = gen_timestamper.timestamp()
-        if ts is not None:
-            row[gen_timestamper.field_name] = ts.isoformat()
-        serialized = gen_serializer.serialize(row)
-        await gen_sink.output(serialized)
+    try:
+        gen_sink = sink.build(conf)
+        await gen_sink.init()
+
+        # Run the generation engine
+        data = gen_source.load()
+        stream = gen_conductor.conduct(data)
+        # TODO(alvaro): Add support for batch output
+        stream = stream if n is None else helpers.aislice(stream, n)
+        async for row in stream:
+            ts = gen_timestamper.timestamp()
+            if ts is not None:
+                row[gen_timestamper.field_name] = ts.isoformat()
+            serialized = gen_serializer.serialize(row)
+            await gen_sink.output(serialized)
+    finally:
+        await gen_sink.teardown()
 
 
 if __name__ == "__main__":
