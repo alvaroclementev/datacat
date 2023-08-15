@@ -13,7 +13,6 @@ if TYPE_CHECKING:
     from datacat.timestamper import Timestamper
 
 
-# TODO(alvaro): Change `add_timestamp` to a `NoneTimestamper`
 def build(
     conf: Configuration,
     serializer: Serializer,
@@ -46,20 +45,17 @@ class ConsoleSink(Sink):
         timestamper: Timestamper,
         *,
         n: int | None = None,
-        add_timestamp: bool = True,
     ):
         self.serializer = serializer
         self.timestamper = timestamper
         self.n = n
-        self.add_timestamp = add_timestamp
 
     async def output(self, data: AsyncData):
         data = data if self.n is None else helpers.aislice(data, self.n)
         async for row in data:
-            if self.add_timestamp:
-                row[
-                    self.timestamper.field_name
-                ] = self.timestamper.timestamp().isoformat()
+            ts = self.timestamper.timestamp()
+            if ts is not None:
+                row[self.timestamper.field_name] = ts.isoformat()
 
             serialized = self.serializer.serialize(row)
 

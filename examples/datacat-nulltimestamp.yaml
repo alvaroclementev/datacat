@@ -1,0 +1,12 @@
+source:
+  type: csv
+  path: data/iris.csv
+sink:
+  type: console
+format:
+  type: json
+conductor:
+  type: rate
+  rate: 100
+timestamp:
+  type: none

@@ -12,6 +12,8 @@ def build(conf: Configuration) -> Timestamper:
 
     if conf.timestamp.type == "now":
         return NowTimestamper(field_name=conf.timestamp.field_name)
+    elif conf.timestamp.type == "none":
+        return NoneTimestamper()
     raise ValueError("Unknown timestamp configuration")
 
 
@@ -22,8 +24,18 @@ class Timestamper(abc.ABC):
         self.field_name = field_name
 
     @abc.abstractmethod
-    def timestamp(self) -> datetime.datetime:
+    def timestamp(self) -> datetime.datetime | None:
         ...
+
+
+class NoneTimestamper(Timestamper):
+    """A Timestamper that does not include the timestamp"""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def timestamp(self) -> datetime.datetime | None:
+        return None
 
 
 class NowTimestamper(Timestamper):
@@ -32,5 +44,5 @@ class NowTimestamper(Timestamper):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def timestamp(self) -> datetime.datetime:
+    def timestamp(self) -> datetime.datetime | None:
         return datetime.datetime.now()

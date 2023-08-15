@@ -21,7 +21,7 @@ class Configuration(BaseModel):
     sink: ConsoleSinkConfig = Field(discriminator="type")
     format: JsonSerializerConfig = Field(discriminator="type")
     conductor: FixedRateConductorConfig = Field(discriminator="type")
-    timestamp: NowTimestamperConfig = Field(discriminator="type")
+    timestamp: NowTimestamperConfig | NoneTimestamperConfig = Field(discriminator="type")
 
 
 class CsvSourceConfig(BaseModel):
@@ -50,6 +50,10 @@ class FixedRateConductorConfig(BaseModel):
 class NowTimestamperConfig(BaseModel):
     type: Literal["now"]
     field_name: str = "timestamp"
+
+
+class NoneTimestamperConfig(BaseModel):
+    type: Literal["none"]
 
 
 def compile(config_path: Path, args: argparse.Namespace) -> Configuration:
