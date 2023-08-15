@@ -5,7 +5,7 @@ import argparse
 import asyncio
 from pathlib import Path
 
-from datacat import conductor, config, serializer, sink, source, timestamper
+from datacat import conductor, config, helpers, serializer, sink, source, timestamper
 
 # TODO(alvaro): Make source and sink async so that everything can work asynchronously
 # TODO(alvaro): Add the concept of ticks so that we can give more precise timings
@@ -47,18 +47,24 @@ async def generate_data(conf: config.Configuration, n: int | None = None):
     """Generate the data based on the given configuration"""
 
     # Prepare the generator given the configuration
-    # TODO(alvaro): Extract the configuration from here
     gen_source = source.build(conf)
     gen_serializer = serializer.build(conf)
     gen_timestamper = timestamper.build(conf)
     gen_conductor = conductor.build(conf, verbose=VERBOSE)
+    gen_sink = sink.build(conf)
 
-    gen_sink = sink.build(conf, gen_serializer, gen_timestamper, n=n)
-
-    # Run the generation
+    # Run the generation engine
     data = gen_source.load()
     stream = gen_conductor.conduct(data)
-    await gen_sink.output(stream)
+
+    # TODO(alvaro): Add support for batch output
+    stream = stream if n is None else helpers.aislice(stream, n)
+    async for row in stream:
+        ts = gen_timestamper.timestamp()
+        if ts is not None:
+            row[gen_timestamper.field_name] = ts.isoformat()
+        serialized = gen_serializer.serialize(row)
+        await gen_sink.output(serialized)
 
 
 if __name__ == "__main__":
