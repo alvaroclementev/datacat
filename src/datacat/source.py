@@ -2,8 +2,9 @@
 from __future__ import annotations
 
 import abc
-import csv
 from pathlib import Path
+
+import pyarrow.csv
 
 from datacat.config import Configuration
 from datacat.typing import Data
@@ -35,6 +36,5 @@ class CsvSource(Source):
 
     def load(self) -> Data:
         # TODO(alvaro): Add support for limiting the number of rows to load
-        with self.path.open("r", newline="") as csvfile:
-            reader = csv.DictReader(csvfile)
-            return list(reader)
+        table = pyarrow.csv.read_csv(self.path)
+        return table.to_pylist()
