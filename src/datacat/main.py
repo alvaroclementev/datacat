@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import sys
 from pathlib import Path
 
 from datacat import conductor, config, serializer, sink, source, timestamper
@@ -19,7 +18,9 @@ VERBOSE = False
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Production like data generator")
-    parser.add_argument("path", type=Path, help="Path to source file")
+    parser.add_argument(
+        "path", nargs="?", type=Path, default=None, help="Path to source file"
+    )
     parser.add_argument(
         "-n", type=int, default=None, help="Maximum number of rows to generate"
     )
@@ -32,26 +33,12 @@ def main() -> int:
     )
 
     args = parser.parse_args()
-    path = args.path
     n = args.n
-    config_path = args.config
-
-    # Validate the path
-    if not path.exists():
-        print("data path not found", file=sys.stderr)
-        return 1
 
     # Load the configuration
-    # TODO(alvaro): Can we provide sane defaults to that this just works? Maybe
-    # require a path to a file and that's it (default to csv, now, no delay, json,
-    # console)
-    if not config_path.exists():
-        print("no configuration file exists", file=sys.stderr)
-        return 1
+    conf = config.compile(args.config, args)
 
-    # TODO(alvaro): Merge the config coming from the command line (and environment?)
-    conf = config.load(config_path)
-
+    # TODO(alvaro): Proper error handling
     asyncio.run(generate_data(conf, n))
     return 0
 

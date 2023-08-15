@@ -1,6 +1,8 @@
 """Configuration management for datacat"""
 from __future__ import annotations
 
+import argparse
+from collections import ChainMap
 from pathlib import Path
 from typing import Literal
 
@@ -45,9 +47,52 @@ class NowTimestamperConfig(BaseModel):
     field_name: str = "timestamp"
 
 
-def load(config_path: Path) -> Configuration:
-    with config_path.open("r") as f:
-        data = yaml.safe_load(f)
+def compile(config_path: Path, args: argparse.Namespace) -> Configuration:
+    """Load the configuration from the different sources and merge it.
 
+    The configuration is loaded from the following sources (with this priority):
+        - CLI arguments
+        - env variables (TODO)
+        - Config file
+    """
+    # TODO(alvaro): Can we provide sane defaults to that this just works? Maybe
+    # require a path to a file and that's it (default to csv, now, no delay, json,
+    # console)
     # TODO(alvaro): Error handling and reporting
-    return Configuration.model_validate(data)
+    args_data = prepare_cli_args(args)
+    file_data = prepare_config_file(config_path)
+
+    merged_data = ChainMap(args_data, file_data)
+
+    return Configuration.model_validate(merged_data)
+
+
+def prepare_config_file(path: Path) -> dict:
+    """Loads the config file"""
+    # FIXME(alvaro): We probably want to allow for this file to not exist if there are
+    # enough arguments
+    if not path.exists():
+        raise RuntimeError(f"the configuration file does not exist: {path}")
+
+    # Load the data
+    with path.open("r") as f:
+        data = yaml.safe_load(f)
+    return data
+
+
+def prepare_cli_args(args: argparse.Namespace) -> dict:
+    """Takes the arguments from the CLI and prepares a dictionary with overrides"""
+
+    data = {}
+
+    # Validate the path
+    if args.path is not None and not args.path.exists():
+        raise RuntimeError("data path not found")
+
+    if args.path is not None:
+        data["source"] = {
+            "type": "csv",
+            "path": str(args.path),
+        }
+
+    return data
