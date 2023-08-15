@@ -15,6 +15,8 @@ def build(conf: Configuration) -> Source:
         return CsvSource(conf.source.path)
     elif conf.source.type == "parquet":
         return ParquetSource(conf.source.path)
+    elif conf.source.type == "ndjson":
+        return NdJsonSource(conf.source.path)
     raise ValueError("Unknown source configuration")
 
 
@@ -56,3 +58,20 @@ class ParquetSource(Source):
         # TODO(alvaro): Add support for limiting the number of rows to load
         table = pyarrow.parquet.read_table(self.path)
         return table.to_pylist()
+
+
+class NdJsonSource(Source):
+    """A source that comes from a NdJSON (newline delimited JSON) file"""
+
+    supports_streaming: bool = True
+
+    def __init__(self, path: Path):
+        self.path = path
+
+    def load(self) -> Data:
+        import json
+
+        with self.path.open("r") as f:
+            data = [json.loads(line.strip()) for line in f.readlines()]
+
+        return data

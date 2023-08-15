@@ -17,11 +17,15 @@ class Configuration(BaseModel):
     # A new `XXXSourceConfig` with a `type` field with a unique (for that kind)
     # `Literal` value and add it as a union in the corresponding field
 
-    source: CsvSourceConfig | ParquetSourceConfig = Field(discriminator="type")
+    source: CsvSourceConfig | ParquetSourceConfig | NdJsonSourceConfig = Field(
+        discriminator="type"
+    )
     sink: ConsoleSinkConfig = Field(discriminator="type")
     format: JsonSerializerConfig = Field(discriminator="type")
     conductor: FixedRateConductorConfig = Field(discriminator="type")
-    timestamp: NowTimestamperConfig | NoneTimestamperConfig = Field(discriminator="type")
+    timestamp: NowTimestamperConfig | NoneTimestamperConfig = Field(
+        discriminator="type"
+    )
 
 
 class CsvSourceConfig(BaseModel):
@@ -34,10 +38,16 @@ class ParquetSourceConfig(BaseModel):
     path: FilePath
 
 
+class NdJsonSourceConfig(BaseModel):
+    type: Literal["ndjson"]
+    path: FilePath
+
+
 class ConsoleSinkConfig(BaseModel):
     type: Literal["console"]
 
 
+# TODO(alvaro): Should we rename this to ndjson for consistency?
 class JsonSerializerConfig(BaseModel):
     type: Literal["json"]
 
