@@ -17,7 +17,7 @@ class Configuration(BaseModel):
     # A new `XXXSourceConfig` with a `type` field with a unique (for that kind)
     # `Literal` value and add it as a union in the corresponding field
 
-    source: CsvSourceConfig = Field(discriminator="type")
+    source: CsvSourceConfig | ParquetSourceConfig = Field(discriminator="type")
     sink: ConsoleSinkConfig = Field(discriminator="type")
     format: JsonSerializerConfig = Field(discriminator="type")
     conductor: FixedRateConductorConfig = Field(discriminator="type")
@@ -26,6 +26,11 @@ class Configuration(BaseModel):
 
 class CsvSourceConfig(BaseModel):
     type: Literal["csv"]
+    path: FilePath
+
+
+class ParquetSourceConfig(BaseModel):
+    type: Literal["parquet"]
     path: FilePath
 
 
@@ -90,6 +95,7 @@ def prepare_cli_args(args: argparse.Namespace) -> dict:
         raise RuntimeError("data path not found")
 
     if args.path is not None:
+        # TODO(alvaro): File format inference based on extension
         data["source"] = {
             "type": "csv",
             "path": str(args.path),

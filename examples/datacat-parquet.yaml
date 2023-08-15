@@ -1,0 +1,12 @@
+source:
+  type: parquet
+  path: data/iris.parquet
+sink:
+  type: console
+format:
+  type: json
+conductor:
+  type: rate
+  rate: 10
+timestamp:
+  type: now
