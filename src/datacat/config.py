@@ -22,7 +22,9 @@ class Configuration(BaseModel):
     )
     sink: ConsoleSinkConfig = Field(discriminator="type")
     format: JsonSerializerConfig = Field(discriminator="type")
-    conductor: FixedRateConductorConfig = Field(discriminator="type")
+    conductor: FixedRateConductorConfig | OriginalRateConductorConfig = Field(
+        discriminator="type"
+    )
     timestamp: NowTimestamperConfig | NoneTimestamperConfig = Field(
         discriminator="type"
     )
@@ -60,6 +62,12 @@ class JsonSerializerConfig(BaseModel):
 class FixedRateConductorConfig(BaseModel):
     type: Literal["rate"]
     rate: PositiveFloat
+
+
+class OriginalRateConductorConfig(BaseModel):
+    type: Literal["original"]
+    field_name: str = "timestamp"
+    format: str | None = None
 
 
 class NowTimestamperConfig(BaseModel):

@@ -1,0 +1,12 @@
+source:
+  type: ndjson
+  path: data/iris-timed.json
+sink:
+  type: console
+format:
+  type: json
+conductor:
+  type: original
+  field_name: timestamp
+timestamp:
+  type: now

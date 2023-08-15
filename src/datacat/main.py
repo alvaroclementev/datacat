@@ -56,7 +56,6 @@ async def generate_data(conf: config.Configuration, n: int | None = None):
     # Run the generation engine
     data = gen_source.load()
     stream = gen_conductor.conduct(data)
-
     # TODO(alvaro): Add support for batch output
     stream = stream if n is None else helpers.aislice(stream, n)
     async for row in stream:
