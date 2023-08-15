@@ -109,10 +109,29 @@ def prepare_cli_args(args: argparse.Namespace) -> dict:
         raise RuntimeError("data path not found")
 
     if args.path is not None:
+        file_type = detect_file_type(args.path)
+
         # TODO(alvaro): File format inference based on extension
         data["source"] = {
-            "type": "csv",
+            "type": file_type,
             "path": str(args.path),
         }
 
     return data
+
+
+def detect_file_type(path: Path) -> str:
+    """Detect the type of file input based on the file name"""
+    extension = path.suffix
+    if not extension:
+        raise ValueError(f"unable to detect file type for {path}")
+
+    ext = extension.lower()
+    if ext == ".csv":
+        return "csv"
+    elif ext == ".parquet":
+        return "parquet"
+    elif ext == ".json":
+        return "ndjson"
+    else:
+        raise ValueError(f"Unknown file extension: {extension}")
