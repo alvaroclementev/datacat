@@ -17,7 +17,7 @@ class Configuration(BaseModel):
     # A new `XXXSourceConfig` with a `type` field with a unique (for that kind)
     # `Literal` value and add it as a union in the corresponding field
 
-    source: CsvSourceConfig | ParquetSourceConfig | NdJsonSourceConfig | JsonSourceConfig = Field(
+    source: CsvSourceConfig | ParquetSourceConfig | NdJsonSourceConfig | JsonSourceConfig | GlobFileSourceConfig = Field(
         discriminator="type"
     )
     sink: ConsoleSinkConfig | KafkaSinkConfig = Field(discriminator="type")
@@ -48,6 +48,12 @@ class NdJsonSourceConfig(BaseModel):
 class JsonSourceConfig(BaseModel):
     type: Literal["json"]
     path: FilePath
+
+
+class GlobFileSourceConfig(BaseModel):
+    type: Literal["glob"]
+    glob: str
+    source_type: Literal["csv", "parquet", "json", "ndjson"]
 
 
 class ConsoleSinkConfig(BaseModel):

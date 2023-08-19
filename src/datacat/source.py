@@ -10,16 +10,17 @@ from datacat.typing import Data
 
 def build(conf: Configuration) -> Source:
     """Build the right `Source` for the given configuration"""
+    try:
+        if conf.source.type == "glob":
+            source_class = FILE_SOURCE_TYPE_MAP[conf.source.source_type]
+            return GlobFileSource(glob=conf.source.glob, source_class=source_class)
 
-    if conf.source.type == "csv":
-        return CsvSource(conf.source.path)
-    elif conf.source.type == "parquet":
-        return ParquetSource(conf.source.path)
-    elif conf.source.type == "ndjson":
-        return NdJsonSource(conf.source.path)
-    elif conf.source.type == "json":
-        return JsonSource(conf.source.path)
-    raise ValueError("Unknown source configuration")
+        cls = FILE_SOURCE_TYPE_MAP[conf.source.type]
+        if issubclass(cls, FileSource):
+            return cls(path=conf.source.path)
+        raise AssertionError("unreachable")
+    except KeyError:
+        raise ValueError("Unknown source configuration")
 
 
 class Source(abc.ABC):
@@ -30,13 +31,19 @@ class Source(abc.ABC):
         ...
 
 
-class CsvSource(Source):
-    """A source that comes from a CSV file"""
-
-    supports_streaming: bool = True
+class FileSource(Source):
+    """A source"""
 
     def __init__(self, path: Path):
         self.path = path
+
+    @abc.abstractmethod
+    def load(self) -> Data:
+        ...
+
+
+class CsvSource(FileSource):
+    """A source that comes from a CSV file"""
 
     def load(self) -> Data:
         import pyarrow.csv
@@ -46,13 +53,8 @@ class CsvSource(Source):
         return table.to_pylist()
 
 
-class ParquetSource(Source):
+class ParquetSource(FileSource):
     """A source that comes from a parquet file"""
-
-    supports_streaming: bool = True
-
-    def __init__(self, path: Path):
-        self.path = path
 
     def load(self) -> Data:
         import pyarrow.parquet
@@ -62,13 +64,8 @@ class ParquetSource(Source):
         return table.to_pylist()
 
 
-class NdJsonSource(Source):
+class NdJsonSource(FileSource):
     """A source that comes from a NdJSON (newline delimited JSON) file"""
-
-    supports_streaming: bool = True
-
-    def __init__(self, path: Path):
-        self.path = path
 
     def load(self) -> Data:
         import json
@@ -79,13 +76,8 @@ class NdJsonSource(Source):
         return data
 
 
-class JsonSource(Source):
+class JsonSource(FileSource):
     """A source that comes from a file that contains JSON array of objects"""
-
-    supports_streaming: bool = True
-
-    def __init__(self, path: Path):
-        self.path = path
 
     def load(self) -> Data:
         import json
@@ -98,3 +90,38 @@ class JsonSource(Source):
                 "invalid format for JSON source: it should be an array of objects"
             )
         return data
+
+
+class GlobFileSource(Source):
+    """A source that represents a glob of files that should be loaded"""
+
+    # NOTE(alvaro): Technically we could support loading a glob of different file types
+    # and detect the relevant source for each... but not interested for now
+    def __init__(self, glob: str, source_class: type[FileSource]):
+        self.glob = glob
+        self.source_class = source_class
+
+    def load(self) -> Data:
+        import glob
+
+        data = []
+        for result in glob.glob(self.glob, recursive=True):
+            path = Path(result)
+
+            # TODO(alvaro): Proper file validation
+            assert path.exists()
+            if not path.is_file():
+                raise RuntimeError("glob must only return files")
+
+            source = self.source_class(path=path)
+            source_data = source.load()
+            data.extend(source_data)
+        return data
+
+
+FILE_SOURCE_TYPE_MAP: dict[str, type[FileSource]] = {
+    "csv": CsvSource,
+    "parquet": ParquetSource,
+    "ndjson": NdJsonSource,
+    "json": JsonSource,
+}

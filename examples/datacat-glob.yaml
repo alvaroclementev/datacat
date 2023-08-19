@@ -1,0 +1,13 @@
+source:
+  type: glob
+  glob: data/*.csv
+  source_type: csv
+sink:
+  type: console
+format:
+  type: json
+conductor:
+  type: rate
+  rate: 100
+timestamp:
+  type: now
